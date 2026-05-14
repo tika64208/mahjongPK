@@ -1,0 +1,69 @@
+{
+  "mode": "packs",
+  "games": 10,
+  "seed_start": 1,
+  "workers": 2,
+  "shard_size": 5,
+  "baseline_level": "b",
+  "baseline": {
+    "name": "baseline",
+    "abilities": [
+      "basic_tile_efficiency",
+      "shanten"
+    ],
+    "games": 10,
+    "wins": 2,
+    "draws": 0,
+    "total_score": -4,
+    "avg_score": -0.4,
+    "win_rate": 0.2,
+    "non_draw_win_rate": 0.2,
+    "avg_discards": 50.4,
+    "elapsed_seconds": 3.376,
+    "win_kinds": {
+      "普通自摸": 9,
+      "七对自摸": 1
+    },
+    "win_rate_delta": 0.0,
+    "avg_score_delta": 0.0,
+    "ability_score": 0
+  },
+  "experiments": [
+    {
+      "name": "expert",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws",
+        "remaining_tiles",
+        "hand_value",
+        "pong_ev",
+        "defense",
+        "gold_strategy",
+        "style_control",
+        "opponent_tenpai",
+        "danger_refined",
+        "kong_ev",
+        "youjin_strategy",
+        "monte_carlo",
+        "explanation"
+      ],
+      "games": 10,
+      "wins": 4,
+      "draws": 0,
+      "total_score": 5,
+      "avg_score": 0.5,
+      "win_rate": 0.4,
+      "non_draw_win_rate": 0.4,
+      "avg_discards": 42.6,
+      "elapsed_seconds": 2.94,
+      "win_kinds": {
+        "普通自摸": 9,
+        "七对自摸": 1
+      },
+      "win_rate_delta": 0.2,
+      "avg_score_delta": 0.9,
+      "ability_score": 88
+    }
+  ]
+}

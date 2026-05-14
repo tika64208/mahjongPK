@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Iterable, List, Optional, Set, Tuple
 
 from .evaluator import evaluate_win
-from .tiles import TILE_ORDER, is_numbered
+from .tiles import TILE_INDEX, TILE_ORDER, is_numbered
 
 
 @dataclass(frozen=True)
@@ -44,13 +44,22 @@ def effective_draws(
     tiles: Iterable[str], gold_tile: str, open_melds: int = 0
 ) -> List[str]:
     """Return tile kinds that complete the hand if drawn next."""
-    hand = list(tiles)
+    return list(
+        _effective_draws_cached(_hand_key(tiles), gold_tile, open_melds)
+    )
+
+
+@lru_cache(maxsize=200000)
+def _effective_draws_cached(
+    hand_key: Tuple[str, ...], gold_tile: str, open_melds: int
+) -> Tuple[str, ...]:
+    hand = list(hand_key)
     draws: List[str] = []
     for tile in TILE_ORDER:
         candidate = hand + [tile]
         if evaluate_win(candidate, gold_tile, open_melds=open_melds):
             draws.append(tile)
-    return draws
+    return tuple(draws)
 
 
 def estimate_shanten(tiles: Iterable[str], gold_tile: str, open_melds: int = 0) -> int:
@@ -60,7 +69,14 @@ def estimate_shanten(tiles: Iterable[str], gold_tile: str, open_melds: int = 0) 
     the real evaluator for the next draw. For farther-away hands it combines
     standard-hand, seven-pairs and thirteen-orphans shape estimates.
     """
-    hand = list(tiles)
+    return _estimate_shanten_cached(_hand_key(tiles), gold_tile, open_melds)
+
+
+@lru_cache(maxsize=200000)
+def _estimate_shanten_cached(
+    hand_key: Tuple[str, ...], gold_tile: str, open_melds: int
+) -> int:
+    hand = list(hand_key)
     sets_needed = 4 - open_melds
     if sets_needed < 0:
         return 8
@@ -82,6 +98,10 @@ def estimate_shanten(tiles: Iterable[str], gold_tile: str, open_melds: int = 0) 
         _seven_pairs_shanten(hand, gold_tile, open_melds),
         _thirteen_orphans_shanten(hand, gold_tile, open_melds),
     )
+
+
+def _hand_key(tiles: Iterable[str]) -> Tuple[str, ...]:
+    return tuple(sorted(tiles, key=lambda tile: TILE_INDEX[tile]))
 
 
 def _standard_shanten(tiles: List[str], gold_tile: str, open_melds: int) -> int:
@@ -191,4 +211,3 @@ def _can_start_sequence(index: int) -> bool:
     if not is_numbered(tile):
         return False
     return index + 2 < len(TILE_ORDER) and TILE_ORDER[index + 2][:1] == tile[:1]
-

@@ -1,6 +1,12 @@
 import unittest
 
-from longyan_mj.evaluator import evaluate_win, is_seven_pairs, is_standard_win, is_thirteen_orphans
+from longyan_mj.evaluator import (
+    evaluate_win,
+    find_youjin_discard,
+    is_seven_pairs,
+    is_standard_win,
+    is_thirteen_orphans,
+)
 from longyan_mj.tiles import is_numbered
 
 
@@ -105,6 +111,25 @@ class EvaluatorTest(unittest.TestCase):
         win = evaluate_win(tiles, "WHITE")
         self.assertIsNotNone(win)
         self.assertEqual("three_gold", win.kind)
+
+    def test_find_youjin_discard(self):
+        tiles = [
+            "WHITE",
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "T2",
+            "T3",
+            "T4",
+            "S7",
+            "S8",
+            "S9",
+            "RED",
+        ]
+        self.assertEqual("RED", find_youjin_discard(tiles, "WHITE"))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import unittest
 
-from longyan_mj.bot import BasicBot, ShantenBot
+from longyan_mj.bot import AbilityConfig, BasicBot, ShantenBot, build_bot_from_abilities
+from longyan_mj.evaluator import WinResult
 from longyan_mj.game import MahjongGame
 from longyan_mj.tiles import build_wall
 
@@ -44,10 +45,57 @@ class GameTest(unittest.TestCase):
             bot_policies=[
                 BasicBot(name="弱"),
                 ShantenBot(name="中", use_effective_draws=False),
-                ShantenBot(name="强", use_effective_draws=True),
+                build_bot_from_abilities("强", AbilityConfig.expert()),
             ],
         )
         self.assertEqual(["弱", "中", "强"], [bot.name for bot in game.bots])
+
+    def test_bot_context_includes_discards_gold_and_melds(self):
+        game = MahjongGame(seed=2)
+        game.start_round()
+        game.discards_by_player[1].append("M1")
+        game.discards.append("M1")
+        game.players[2].melds.append(type("MeldStub", (), {"tiles": ["T2", "T2", "T2"]})())
+        context = game._bot_context(3)
+        self.assertEqual(1, context.visible_counts["M1"])
+        self.assertEqual(3, context.visible_counts["T2"])
+        self.assertEqual(1, context.visible_counts[game.gold_tile])
+
+    def test_finish_single_you_scores_as_single_you(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        player = game.players[0]
+        player.youjin_level = 1
+        result = game._finish_win(
+            player,
+            WinResult("single_you", "单游", 5),
+            output_func=lambda message: None,
+            discard_count=3,
+            draw_count=2,
+            pong_count=0,
+        )
+        self.assertEqual("single_you", result.win.kind)
+        self.assertEqual("单游", result.score.win_label)
+        self.assertEqual(5, result.score.multiplier)
+        self.assertEqual(0, player.youjin_level)
+
+    def test_finish_double_you_scores_as_double_you(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        player = game.players[0]
+        player.youjin_level = 2
+        result = game._finish_win(
+            player,
+            WinResult("double_you", "双游", 10),
+            output_func=lambda message: None,
+            discard_count=3,
+            draw_count=2,
+            pong_count=0,
+        )
+        self.assertEqual("double_you", result.win.kind)
+        self.assertEqual("双游", result.score.win_label)
+        self.assertEqual(10, result.score.multiplier)
+        self.assertEqual(0, player.youjin_level)
 
 
 if __name__ == "__main__":

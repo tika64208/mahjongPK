@@ -19,6 +19,7 @@ class Player:
     is_human: bool = False
     hand: List[str] = field(default_factory=list)
     melds: List[Meld] = field(default_factory=list)
+    youjin_level: int = 0
 
     def sort_hand(self) -> None:
         self.hand = sort_tiles(self.hand)
@@ -49,3 +50,5 @@ class Player:
         self.sort_hand()
         return tile
 
+    def clear_youjin(self) -> None:
+        self.youjin_level = 0

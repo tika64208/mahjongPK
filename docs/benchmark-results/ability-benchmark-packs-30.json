@@ -1,0 +1,240 @@
+{
+  "mode": "packs",
+  "games": 30,
+  "seed_start": 1,
+  "baseline": {
+    "name": "baseline",
+    "abilities": [
+      "basic_tile_efficiency"
+    ],
+    "games": 30,
+    "wins": 6,
+    "draws": 0,
+    "total_score": -3,
+    "avg_score": -0.1,
+    "win_rate": 0.2,
+    "non_draw_win_rate": 0.2,
+    "avg_discards": 53.3,
+    "elapsed_seconds": 0.134,
+    "win_kinds": {
+      "普通自摸": 28,
+      "七对自摸": 2
+    },
+    "win_rate_delta": 0.0,
+    "avg_score_delta": 0.0,
+    "ability_score": 0
+  },
+  "experiments": [
+    {
+      "name": "tile_efficiency",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws"
+      ],
+      "games": 30,
+      "wins": 11,
+      "draws": 0,
+      "total_score": 25,
+      "avg_score": 0.8333,
+      "win_rate": 0.3667,
+      "non_draw_win_rate": 0.3667,
+      "avg_discards": 51.6,
+      "elapsed_seconds": 5.357,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 2
+      },
+      "win_rate_delta": 0.1667,
+      "avg_score_delta": 0.9333,
+      "ability_score": 78
+    },
+    {
+      "name": "reading",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws",
+        "remaining_tiles"
+      ],
+      "games": 30,
+      "wins": 9,
+      "draws": 1,
+      "total_score": 8,
+      "avg_score": 0.2667,
+      "win_rate": 0.3,
+      "non_draw_win_rate": 0.3103,
+      "avg_discards": 52.43,
+      "elapsed_seconds": 4.433,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 1
+      },
+      "win_rate_delta": 0.1,
+      "avg_score_delta": 0.3667,
+      "ability_score": 60
+    },
+    {
+      "name": "value_routes",
+      "abilities": [
+        "basic_tile_efficiency",
+        "hand_value",
+        "gold_strategy",
+        "youjin_strategy"
+      ],
+      "games": 30,
+      "wins": 6,
+      "draws": 0,
+      "total_score": -3,
+      "avg_score": -0.1,
+      "win_rate": 0.2,
+      "non_draw_win_rate": 0.2,
+      "avg_discards": 53.3,
+      "elapsed_seconds": 0.107,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 2
+      },
+      "win_rate_delta": 0.0,
+      "avg_score_delta": 0.0,
+      "ability_score": 3
+    },
+    {
+      "name": "pong_judgement",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "pong_ev"
+      ],
+      "games": 30,
+      "wins": 8,
+      "draws": 3,
+      "total_score": -7,
+      "avg_score": -0.2333,
+      "win_rate": 0.2667,
+      "non_draw_win_rate": 0.2963,
+      "avg_discards": 58.1,
+      "elapsed_seconds": 3.949,
+      "win_kinds": {
+        "普通自摸": 23,
+        "七对自摸": 4
+      },
+      "win_rate_delta": 0.0667,
+      "avg_score_delta": -0.1333,
+      "ability_score": 45
+    },
+    {
+      "name": "defense",
+      "abilities": [
+        "basic_tile_efficiency",
+        "defense",
+        "opponent_tenpai",
+        "danger_refined"
+      ],
+      "games": 30,
+      "wins": 6,
+      "draws": 0,
+      "total_score": -3,
+      "avg_score": -0.1,
+      "win_rate": 0.2,
+      "non_draw_win_rate": 0.2,
+      "avg_discards": 53.3,
+      "elapsed_seconds": 0.107,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 2
+      },
+      "win_rate_delta": 0.0,
+      "avg_score_delta": 0.0,
+      "ability_score": 3
+    },
+    {
+      "name": "simulation",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws",
+        "remaining_tiles",
+        "monte_carlo"
+      ],
+      "games": 30,
+      "wins": 9,
+      "draws": 1,
+      "total_score": 8,
+      "avg_score": 0.2667,
+      "win_rate": 0.3,
+      "non_draw_win_rate": 0.3103,
+      "avg_discards": 52.43,
+      "elapsed_seconds": 4.234,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 1
+      },
+      "win_rate_delta": 0.1,
+      "avg_score_delta": 0.3667,
+      "ability_score": 60
+    },
+    {
+      "name": "training_hint",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws",
+        "remaining_tiles",
+        "explanation"
+      ],
+      "games": 30,
+      "wins": 9,
+      "draws": 1,
+      "total_score": 8,
+      "avg_score": 0.2667,
+      "win_rate": 0.3,
+      "non_draw_win_rate": 0.3103,
+      "avg_discards": 52.43,
+      "elapsed_seconds": 4.188,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 1
+      },
+      "win_rate_delta": 0.1,
+      "avg_score_delta": 0.3667,
+      "ability_score": 60
+    },
+    {
+      "name": "expert",
+      "abilities": [
+        "basic_tile_efficiency",
+        "shanten",
+        "effective_draws",
+        "remaining_tiles",
+        "hand_value",
+        "pong_ev",
+        "defense",
+        "gold_strategy",
+        "style_control",
+        "opponent_tenpai",
+        "danger_refined",
+        "kong_ev",
+        "youjin_strategy",
+        "monte_carlo",
+        "explanation"
+      ],
+      "games": 30,
+      "wins": 8,
+      "draws": 1,
+      "total_score": 2,
+      "avg_score": 0.0667,
+      "win_rate": 0.2667,
+      "non_draw_win_rate": 0.2759,
+      "avg_discards": 53.13,
+      "elapsed_seconds": 4.59,
+      "win_kinds": {
+        "普通自摸": 28,
+        "七对自摸": 1
+      },
+      "win_rate_delta": 0.0667,
+      "avg_score_delta": 0.1667,
+      "ability_score": 55
+    }
+  ]
+}

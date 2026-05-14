@@ -43,6 +43,35 @@ def evaluate_win(
     return None
 
 
+def find_youjin_discard(
+    tiles: Iterable[str], gold_tile: Optional[str], open_melds: int = 0
+) -> Optional[str]:
+    """Return a natural pair tile that can be discarded to enter youjin.
+
+    MVP rule: if the hand is a standard winning hand and one gold can serve as
+    the pair with a natural tile, discarding that natural tile leaves the gold as
+    single pair anchor for single-you.
+    """
+    if not gold_tile:
+        return None
+    hand = list(tiles)
+    if hand.count(gold_tile) != 1:
+        return None
+    if not is_standard_win(hand, gold_tile, open_melds=open_melds):
+        return None
+
+    counts = Counter(tile for tile in hand if tile != gold_tile)
+    for tile in sorted(counts, key=lambda item: TILE_INDEX[item]):
+        if counts[tile] >= 1:
+            candidate = hand[:]
+            candidate.remove(tile)
+            if is_standard_win(candidate + [tile], gold_tile, open_melds=open_melds):
+                without_gold = [item for item in candidate if item != gold_tile]
+                if _can_form_melds(_counts_tuple(Counter(without_gold)), 0, 4 - open_melds):
+                    return tile
+    return None
+
+
 def is_seven_pairs(tiles: Iterable[str], gold_tile: str) -> bool:
     hand = list(tiles)
     if len(hand) != 14:
@@ -151,4 +180,3 @@ def _can_make_sequence_from(index: int) -> bool:
     if not is_numbered(tile):
         return False
     return tile_number(tile) <= 7 and TILE_ORDER[index + 1][:1] == tile[:1]
-

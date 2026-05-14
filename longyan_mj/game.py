@@ -1,10 +1,11 @@
 """Round runner for local Longyan Mahjong games."""
 
+from collections import Counter
 import random
 from typing import Callable, List, Optional
 
-from .bot import BotPolicy, default_bot_policies
-from .evaluator import WinResult, evaluate_win
+from .bot import BotContext, BotPolicy, default_bot_policies
+from .evaluator import WinResult, evaluate_win, find_youjin_discard
 from .rules import LONGYAN_HALF_SELF_DRAW, RuleProfile
 from .scoring import ScoreResult, score_self_draw
 from .state import Player
@@ -21,11 +22,17 @@ class GameResult:
         win: Optional[WinResult],
         reason: str,
         score: Optional[ScoreResult] = None,
+        discard_count: int = 0,
+        draw_count: int = 0,
+        pong_count: int = 0,
     ) -> None:
         self.winner = winner
         self.win = win
         self.reason = reason
         self.score = score
+        self.discard_count = discard_count
+        self.draw_count = draw_count
+        self.pong_count = pong_count
 
 
 class MahjongGame:
@@ -48,6 +55,7 @@ class MahjongGame:
         self.bots = bot_policies or default_bot_policies()
         self.wall: List[str] = []
         self.discards: List[str] = []
+        self.discards_by_player: List[List[str]] = [[] for _ in self.players]
         self.gold_tile: Optional[str] = None
         self.dealer = 0
         self.current = self.dealer
@@ -57,10 +65,12 @@ class MahjongGame:
         self.random.shuffle(self.wall)
         self.gold_tile = self.wall.pop()
         self.discards = []
+        self.discards_by_player = [[] for _ in self.players]
         self.current = self.dealer
         for player in self.players:
             player.hand.clear()
             player.melds.clear()
+            player.clear_youjin()
         for _ in range(13):
             for player in self.players:
                 player.hand.append(self.wall.pop())
@@ -77,6 +87,9 @@ class MahjongGame:
 
         first_turn = True
         discard_only = False
+        discard_count = 0
+        draw_count = 0
+        pong_count = 0
 
         while self.wall:
             player = self.players[self.current]
@@ -84,8 +97,10 @@ class MahjongGame:
             if not discard_only:
                 if first_turn and self.current == self.dealer:
                     first_turn = False
+                    drawn = None
                 else:
                     drawn = self.wall.pop()
+                    draw_count += 1
                     player.hand.append(drawn)
                     player.sort_hand()
                     if player.is_human:
@@ -93,24 +108,61 @@ class MahjongGame:
                     else:
                         output_func(f"\n{player.name} 摸牌")
 
+                if player.youjin_level:
+                    if player.youjin_level == 1 and drawn == self.gold_tile:
+                        player.remove_tile(self.gold_tile)
+                        player.youjin_level = 2
+                        discard_count += 1
+                        output_func(f"{player.name} 摸到金牌，进入双游")
+                        self.current = (self.current + 1) % 4
+                        discard_only = False
+                        continue
+                    win_kind = "single_you" if player.youjin_level == 1 else "double_you"
+                    win_label = "单游" if player.youjin_level == 1 else "双游"
+                    win = WinResult(win_kind, win_label, 5 if player.youjin_level == 1 else 10)
+                    return self._finish_win(
+                        player,
+                        win,
+                        output_func,
+                        discard_count,
+                        draw_count,
+                        pong_count,
+                    )
+
                 win = evaluate_win(player.hand, self.gold_tile, open_melds=len(player.melds))
                 if win and self._accept_win(player, win, input_func, output_func):
-                    score = score_self_draw(self.current, self.dealer, win)
-                    output_func(
-                        f"{player.name} 胡牌：{score.win_label}，"
-                        f"{score.multiplier} 倍，得分 +{score.total_gain}，"
-                        f"手牌 {display_tiles(player.hand)}"
+                    youjin_discard = find_youjin_discard(
+                        player.hand, self.gold_tile, open_melds=len(player.melds)
                     )
-                    output_func(self._format_score_payments(score))
-                    return GameResult(self.current, win, "win", score=score)
+                    if youjin_discard and self._accept_youjin(player, input_func, output_func):
+                        player.remove_tile(youjin_discard)
+                        player.youjin_level = 1
+                        discard_count += 1
+                        output_func(f"{player.name} 打出 {display_tile(youjin_discard)}，进入单游")
+                        self.current = (self.current + 1) % 4
+                        discard_only = False
+                        continue
+                    return self._finish_win(
+                        player,
+                        win,
+                        output_func,
+                        discard_count,
+                        draw_count,
+                        pong_count,
+                    )
 
             discarded = self._discard(player, input_func, output_func)
+            discard_count += 1
             self.discards.append(discarded)
+            self.discards_by_player[self.current].append(discarded)
             output_func(f"{player.name} 打出：{display_tile(discarded)}")
 
             pong_player = self._find_pong_player(discarded, input_func, output_func)
             if pong_player is not None:
+                self.discards.pop()
+                self.discards_by_player[self.current].pop()
                 self.players[pong_player].pong(discarded, self.current)
+                pong_count += 1
                 output_func(f"{self.players[pong_player].name} 碰 {display_tile(discarded)}")
                 self.current = pong_player
                 discard_only = True
@@ -120,7 +172,14 @@ class MahjongGame:
             discard_only = False
 
         output_func("牌墙摸完，流局。")
-        return GameResult(None, None, "draw")
+        return GameResult(
+            None,
+            None,
+            "draw",
+            discard_count=discard_count,
+            draw_count=draw_count,
+            pong_count=pong_count,
+        )
 
     def _accept_win(
         self, player: Player, win: WinResult, input_func: InputFunc, output_func: OutputFunc
@@ -136,11 +195,55 @@ class MahjongGame:
                 return False
             output_func("请输入 y 或 n。")
 
+    def _accept_youjin(
+        self, player: Player, input_func: InputFunc, output_func: OutputFunc
+    ) -> bool:
+        if not player.is_human:
+            return True
+        output_func(f"你的手牌：{self._numbered_hand(player)}")
+        while True:
+            answer = input_func("可进入单游，是否游金？[y/n] ").strip().lower()
+            if answer in ("y", "yes", "you", "游", "游金"):
+                return True
+            if answer in ("n", "no", ""):
+                return False
+            output_func("请输入 y 或 n。")
+
+    def _finish_win(
+        self,
+        player: Player,
+        win: WinResult,
+        output_func: OutputFunc,
+        discard_count: int,
+        draw_count: int,
+        pong_count: int,
+    ) -> GameResult:
+        score = score_self_draw(self.current, self.dealer, win)
+        player.clear_youjin()
+        output_func(
+            f"{player.name} 胡牌：{score.win_label}，"
+            f"{score.multiplier} 倍，得分 +{score.total_gain}，"
+            f"手牌 {display_tiles(player.hand)}"
+        )
+        output_func(self._format_score_payments(score))
+        return GameResult(
+            self.current,
+            win,
+            "win",
+            score=score,
+            discard_count=discard_count,
+            draw_count=draw_count,
+            pong_count=pong_count,
+        )
+
     def _discard(self, player: Player, input_func: InputFunc, output_func: OutputFunc) -> str:
         if player.is_human:
             return self._human_discard(player, input_func, output_func)
         tile = self._bot_for_player(self.current).choose_discard(
-            player.hand, self.gold_tile, open_melds=len(player.melds)
+            player.hand,
+            self.gold_tile,
+            open_melds=len(player.melds),
+            context=self._bot_context(self.current),
         )
         return player.remove_tile(tile)
 
@@ -174,7 +277,11 @@ class MahjongGame:
                 if answer in ("y", "yes", "p", "peng", "碰"):
                     return index
             elif self._bot_for_player(index).wants_pong(
-                player.hand, discarded, self.gold_tile, open_melds=len(player.melds)
+                player.hand,
+                discarded,
+                self.gold_tile,
+                open_melds=len(player.melds),
+                context=self._bot_context(index),
             ):
                 return index
         return None
@@ -182,6 +289,28 @@ class MahjongGame:
     def _bot_for_player(self, player_index: int) -> BotPolicy:
         bot_index = player_index - 1 if player_index > self.human_index else player_index
         return self.bots[bot_index % len(self.bots)]
+
+    def _bot_context(self, player_index: int) -> BotContext:
+        visible_counts = Counter()
+        if self.gold_tile:
+            visible_counts[self.gold_tile] += 1
+        for tile in self.discards:
+            visible_counts[tile] += 1
+        melds_by_player = []
+        for player in self.players:
+            player_melds = []
+            for meld in player.melds:
+                visible_counts.update(meld.tiles)
+                player_melds.append(tuple(meld.tiles))
+            melds_by_player.append(tuple(player_melds))
+        return BotContext(
+            current_player=player_index,
+            dealer=self.dealer,
+            wall_remaining=len(self.wall),
+            visible_counts=visible_counts,
+            discards_by_player=tuple(tuple(tiles) for tiles in self.discards_by_player),
+            melds_by_player=tuple(melds_by_player),
+        )
 
     def _numbered_hand(self, player: Player) -> str:
         player.hand = sort_tiles(player.hand)
