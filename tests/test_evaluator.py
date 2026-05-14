@@ -1,6 +1,7 @@
 import unittest
 
 from longyan_mj.evaluator import (
+    evaluate_qiangjin,
     evaluate_win,
     find_youjin_discard,
     is_seven_pairs,
@@ -111,6 +112,47 @@ class EvaluatorTest(unittest.TestCase):
         win = evaluate_win(tiles, "WHITE")
         self.assertIsNotNone(win)
         self.assertEqual("three_gold", win.kind)
+
+    def test_evaluate_qiangjin_for_idle_player(self):
+        tiles = [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "T2",
+            "T3",
+            "T4",
+            "S7",
+            "S8",
+            "S9",
+            "RED",
+        ]
+        win = evaluate_qiangjin(tiles, "WHITE")
+        self.assertIsNotNone(win)
+        self.assertEqual("qiang_jin", win.kind)
+
+    def test_evaluate_qiangjin_for_dealer_after_one_discard(self):
+        tiles = [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "T2",
+            "T3",
+            "T4",
+            "S7",
+            "S8",
+            "S9",
+            "RED",
+            "EAST",
+        ]
+        win = evaluate_qiangjin(tiles, "WHITE")
+        self.assertIsNotNone(win)
+        self.assertEqual("qiang_jin", win.kind)
 
     def test_find_youjin_discard(self):
         tiles = [

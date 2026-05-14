@@ -25,6 +25,42 @@ class GameTest(unittest.TestCase):
         self.assertFalse(player.can_pong("M1", "M1"))
         self.assertTrue(player.can_pong("M1", "WHITE"))
 
+    def test_player_can_make_concealed_kong(self):
+        game = MahjongGame(seed=1)
+        player = game.players[0]
+        player.hand = ["M1", "M1", "M1", "M1", "M2"]
+        self.assertTrue(player.can_concealed_kong("M1", "WHITE"))
+        player.concealed_kong("M1", 0)
+        self.assertEqual(["M2"], player.hand)
+        self.assertEqual("concealed_kong", player.melds[0].kind)
+
+    def test_player_can_make_exposed_kong(self):
+        game = MahjongGame(seed=1)
+        player = game.players[1]
+        player.hand = ["T3", "T3", "T3", "S1"]
+        self.assertTrue(player.can_exposed_kong("T3", "WHITE"))
+        player.exposed_kong("T3", 0)
+        self.assertEqual(["S1"], player.hand)
+        self.assertEqual("exposed_kong", player.melds[0].kind)
+
+    def test_player_can_make_added_kong_from_pong(self):
+        game = MahjongGame(seed=1)
+        player = game.players[1]
+        player.hand = ["S5", "S5", "M1"]
+        player.pong("S5", 0)
+        player.hand.append("S5")
+        self.assertTrue(player.can_added_kong("S5", "WHITE"))
+        player.added_kong("S5")
+        self.assertEqual("added_kong", player.melds[0].kind)
+        self.assertEqual(["M1"], player.hand)
+
+    def test_gold_tile_cannot_be_konged(self):
+        game = MahjongGame(seed=1)
+        player = game.players[0]
+        player.hand = ["WHITE", "WHITE", "WHITE", "WHITE"]
+        self.assertFalse(player.can_concealed_kong("WHITE", "WHITE"))
+        self.assertFalse(player.can_exposed_kong("WHITE", "WHITE"))
+
     def test_bot_avoids_discarding_gold_when_possible(self):
         bot = BasicBot()
         discard = bot.choose_discard(["WHITE", "M1", "M1", "EAST"], "WHITE")
@@ -61,6 +97,51 @@ class GameTest(unittest.TestCase):
         self.assertEqual(3, context.visible_counts["T2"])
         self.assertEqual(1, context.visible_counts[game.gold_tile])
 
+    def test_opening_qiangjin_finishes_round(self):
+        game = MahjongGame(seed=1)
+        game.gold_tile = "WHITE"
+        game.dealer = 0
+        game.current = 0
+        non_winning_hand = [
+            "M1",
+            "M4",
+            "M7",
+            "T1",
+            "T4",
+            "T7",
+            "S1",
+            "S4",
+            "S7",
+            "EAST",
+            "SOUTH",
+            "WEST",
+            "RED",
+        ]
+        for player in game.players:
+            player.hand = non_winning_hand[:]
+            player.is_human = False
+        game.players[1].hand = [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "T2",
+            "T3",
+            "T4",
+            "S7",
+            "S8",
+            "S9",
+            "RED",
+        ]
+        result = game._check_opening_special_win(
+            input_func=lambda prompt: "", output_func=lambda message: None
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(1, result.winner)
+        self.assertEqual("qiang_jin", result.win.kind)
+
     def test_finish_single_you_scores_as_single_you(self):
         game = MahjongGame(seed=1)
         game.start_round()
@@ -73,6 +154,7 @@ class GameTest(unittest.TestCase):
             discard_count=3,
             draw_count=2,
             pong_count=0,
+            kong_count=0,
         )
         self.assertEqual("single_you", result.win.kind)
         self.assertEqual("单游", result.score.win_label)
@@ -91,6 +173,7 @@ class GameTest(unittest.TestCase):
             discard_count=3,
             draw_count=2,
             pong_count=0,
+            kong_count=0,
         )
         self.assertEqual("double_you", result.win.kind)
         self.assertEqual("双游", result.score.win_label)

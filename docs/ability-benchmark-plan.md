@@ -319,7 +319,7 @@ test seeds = 1..N
 | `style_control` | 低到中 | 更偏体验和差异化。 |
 | `opponent_tenpai` | 中 | 与防守包协同。 |
 | `danger_refined` | 中 | 与防守包协同。 |
-| `kong_ev` | 当前低 | 完整杠流程实现后再评估。 |
+| `kong_ev` | 待复测 | 已接入杠流程，需用新大样本重新评估胜率影响。 |
 | `youjin_strategy` | 当前中低 | 完整游金状态机实现后会更重要。 |
 | `monte_carlo` | 当前中 | 轻量版；完整模拟后潜力高。 |
 | `explanation` | 不直接提升 AI 胜率 | 主要用于训练、提示和复盘商品。 |

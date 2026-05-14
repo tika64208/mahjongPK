@@ -43,6 +43,31 @@ def evaluate_win(
     return None
 
 
+def evaluate_qiangjin(
+    tiles: Iterable[str], gold_tile: Optional[str], open_melds: int = 0
+) -> Optional[WinResult]:
+    """Return qiang-jin when an opening hand wins by claiming the revealed gold.
+
+    For a 13-tile idle hand, the revealed gold is treated as the winning tile.
+    For a dealer-size 14-tile hand, any one discard may first be removed before
+    the revealed gold is claimed. The claimed gold is not counted as a
+    three-gold shortcut; it must complete a regular supported hand shape.
+    """
+    if not gold_tile:
+        return None
+    hand = list(tiles)
+    if len(hand) == open_melds * 3 + 13:
+        if _is_qiangjin_shape(hand + [gold_tile], gold_tile, open_melds):
+            return WinResult("qiang_jin", "抢金", 4)
+    if len(hand) == open_melds * 3 + 14:
+        for tile in sorted(set(hand), key=lambda item: TILE_INDEX[item]):
+            candidate = hand[:]
+            candidate.remove(tile)
+            if _is_qiangjin_shape(candidate + [gold_tile], gold_tile, open_melds):
+                return WinResult("qiang_jin", "抢金", 4)
+    return None
+
+
 def find_youjin_discard(
     tiles: Iterable[str], gold_tile: Optional[str], open_melds: int = 0
 ) -> Optional[str]:
@@ -70,6 +95,15 @@ def find_youjin_discard(
                 if _can_form_melds(_counts_tuple(Counter(without_gold)), 0, 4 - open_melds):
                     return tile
     return None
+
+
+def _is_qiangjin_shape(tiles: Iterable[str], gold_tile: str, open_melds: int) -> bool:
+    hand = list(tiles)
+    if open_melds == 0 and is_thirteen_orphans(hand, gold_tile):
+        return True
+    if open_melds == 0 and is_seven_pairs(hand, gold_tile):
+        return True
+    return is_standard_win(hand, gold_tile, open_melds=open_melds)
 
 
 def is_seven_pairs(tiles: Iterable[str], gold_tile: str) -> bool:

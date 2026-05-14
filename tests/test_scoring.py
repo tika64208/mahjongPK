@@ -18,6 +18,7 @@ class ScoringTest(unittest.TestCase):
 
     def test_supported_win_score_rules(self):
         self.assertEqual(3, DEFAULT_WIN_RULES["three_gold"].multiplier)
+        self.assertEqual(4, DEFAULT_WIN_RULES["qiang_jin"].multiplier)
         self.assertEqual(20, DEFAULT_WIN_RULES["thirteen_orphans"].multiplier)
         self.assertEqual(5, DEFAULT_WIN_RULES["single_you"].multiplier)
         self.assertEqual(10, DEFAULT_WIN_RULES["double_you"].multiplier)

@@ -46,6 +46,36 @@ class BotPolicy(Protocol):
     ) -> bool:
         ...
 
+    def wants_concealed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional["BotContext"] = None,
+    ) -> bool:
+        ...
+
+    def wants_added_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional["BotContext"] = None,
+    ) -> bool:
+        ...
+
+    def wants_exposed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional["BotContext"] = None,
+    ) -> bool:
+        ...
+
 
 @dataclass(frozen=True)
 class BotStyle:
@@ -244,6 +274,36 @@ class BasicBot:
             return True
         return hand.count(tile) >= 2 and self._neighbor_count(hand, tile) == 0
 
+    def wants_concealed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return tile != gold_tile and hand.count(tile) >= 4
+
+    def wants_added_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return tile != gold_tile and tile in hand
+
+    def wants_exposed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return False
+
     def _keep_score(self, tile: str, counts: Counter) -> int:
         score = 0
         if counts[tile] >= 2:
@@ -306,6 +366,40 @@ class ShantenBot(BasicBot):
             pong_ev=self.allow_shanten_pong,
         )
         return ConfigurableBot(name=self.name, abilities=abilities).wants_pong(
+            hand, tile, gold_tile, open_melds, context
+        )
+
+    def wants_concealed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return BasicBot(name=self.name).wants_concealed_kong(
+            hand, tile, gold_tile, open_melds, context
+        )
+
+    def wants_added_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return BasicBot(name=self.name).wants_added_kong(hand, tile, gold_tile, open_melds, context)
+
+    def wants_exposed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        return BasicBot(name=self.name).wants_exposed_kong(
             hand, tile, gold_tile, open_melds, context
         )
 
@@ -382,6 +476,48 @@ class ConfigurableBot(BasicBot):
         if not self.abilities.pong_ev:
             return self._wants_pong_by_shanten(hand, tile, gold_tile, open_melds)
         return self._wants_pong_by_ev(hand, tile, gold_tile, open_melds, context)
+
+    def wants_concealed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        if tile == gold_tile or hand.count(tile) < 4:
+            return False
+        return True if self.abilities.kong_ev else super().wants_concealed_kong(
+            hand, tile, gold_tile, open_melds, context
+        )
+
+    def wants_added_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        if tile == gold_tile or tile not in hand:
+            return False
+        return True if self.abilities.kong_ev else super().wants_added_kong(
+            hand, tile, gold_tile, open_melds, context
+        )
+
+    def wants_exposed_kong(
+        self,
+        hand: List[str],
+        tile: str,
+        gold_tile: str,
+        open_melds: int = 0,
+        context: Optional[BotContext] = None,
+    ) -> bool:
+        if tile == gold_tile or hand.count(tile) < 3:
+            return False
+        if not self.abilities.kong_ev:
+            return super().wants_exposed_kong(hand, tile, gold_tile, open_melds, context)
+        return self._kong_value(list(hand) + [tile], gold_tile) >= 10
 
     def _effective_metric(
         self,

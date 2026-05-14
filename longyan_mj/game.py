@@ -2,14 +2,14 @@
 
 from collections import Counter
 import random
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from .bot import BotContext, BotPolicy, default_bot_policies
-from .evaluator import WinResult, evaluate_win, find_youjin_discard
+from .evaluator import WinResult, count_gold, evaluate_qiangjin, evaluate_win, find_youjin_discard
 from .rules import LONGYAN_HALF_SELF_DRAW, RuleProfile
 from .scoring import ScoreResult, score_self_draw
 from .state import Player
-from .tiles import build_wall, display_tile, display_tiles, sort_tiles
+from .tiles import TILE_INDEX, build_wall, display_tile, display_tiles, sort_tiles
 
 InputFunc = Callable[[str], str]
 OutputFunc = Callable[[str], None]
@@ -25,6 +25,7 @@ class GameResult:
         discard_count: int = 0,
         draw_count: int = 0,
         pong_count: int = 0,
+        kong_count: int = 0,
     ) -> None:
         self.winner = winner
         self.win = win
@@ -33,6 +34,7 @@ class GameResult:
         self.discard_count = discard_count
         self.draw_count = draw_count
         self.pong_count = pong_count
+        self.kong_count = kong_count
 
 
 class MahjongGame:
@@ -85,17 +87,26 @@ class MahjongGame:
         output_func("机器人能力：" + "，".join(bot.name for bot in self.bots))
         output_func("牌局开始。输入手牌编号出牌，输入 q 可退出。")
 
+        opening_result = self._check_opening_special_win(input_func, output_func)
+        if opening_result:
+            return opening_result
+
         first_turn = True
         discard_only = False
+        prepared_drawn: Optional[str] = None
         discard_count = 0
         draw_count = 0
         pong_count = 0
+        kong_count = 0
 
         while self.wall:
             player = self.players[self.current]
 
             if not discard_only:
-                if first_turn and self.current == self.dealer:
+                if prepared_drawn:
+                    drawn = prepared_drawn
+                    prepared_drawn = None
+                elif first_turn and self.current == self.dealer:
                     first_turn = False
                     drawn = None
                 else:
@@ -127,6 +138,7 @@ class MahjongGame:
                         discard_count,
                         draw_count,
                         pong_count,
+                        kong_count,
                     )
 
                 win = evaluate_win(player.hand, self.gold_tile, open_melds=len(player.melds))
@@ -149,13 +161,38 @@ class MahjongGame:
                         discard_count,
                         draw_count,
                         pong_count,
+                        kong_count,
                     )
+
+                self_kong = self._perform_self_kong(player, input_func, output_func)
+                if self_kong:
+                    kong_count += 1
+                    prepared_drawn = self_kong[2]
+                    if prepared_drawn:
+                        draw_count += 1
+                    discard_only = False
+                    continue
 
             discarded = self._discard(player, input_func, output_func)
             discard_count += 1
             self.discards.append(discarded)
             self.discards_by_player[self.current].append(discarded)
             output_func(f"{player.name} 打出：{display_tile(discarded)}")
+
+            kong_player = self._find_exposed_kong_player(discarded, input_func, output_func)
+            if kong_player is not None:
+                source_player = self.current
+                self.discards.pop()
+                self.discards_by_player[self.current].pop()
+                self.players[kong_player].exposed_kong(discarded, source_player)
+                kong_count += 1
+                output_func(f"{self.players[kong_player].name} 明杠 {display_tile(discarded)}")
+                self.current = kong_player
+                prepared_drawn = self._draw_supplement(self.players[kong_player], output_func)
+                if prepared_drawn:
+                    draw_count += 1
+                discard_only = False
+                continue
 
             pong_player = self._find_pong_player(discarded, input_func, output_func)
             if pong_player is not None:
@@ -179,7 +216,34 @@ class MahjongGame:
             discard_count=discard_count,
             draw_count=draw_count,
             pong_count=pong_count,
+            kong_count=kong_count,
         )
+
+    def _check_opening_special_win(
+        self, input_func: InputFunc, output_func: OutputFunc
+    ) -> Optional[GameResult]:
+        if not self.gold_tile:
+            return None
+
+        seat_order = [(self.dealer + offset) % 4 for offset in range(4)]
+        for index in seat_order:
+            player = self.players[index]
+            if count_gold(player.hand, self.gold_tile) < 3:
+                continue
+            win = WinResult("three_gold", "三金倒", 3)
+            if self._accept_win(player, win, input_func, output_func):
+                self.current = index
+                return self._finish_win(player, win, output_func, 0, 0, 0, 0)
+
+        qiangjin_order = [(self.dealer + offset) % 4 for offset in range(1, 5)]
+        for index in qiangjin_order:
+            player = self.players[index]
+            win = evaluate_qiangjin(player.hand, self.gold_tile)
+            if win and self._accept_win(player, win, input_func, output_func):
+                self.current = index
+                return self._finish_win(player, win, output_func, 0, 0, 0, 0)
+
+        return None
 
     def _accept_win(
         self, player: Player, win: WinResult, input_func: InputFunc, output_func: OutputFunc
@@ -217,6 +281,7 @@ class MahjongGame:
         discard_count: int,
         draw_count: int,
         pong_count: int,
+        kong_count: int,
     ) -> GameResult:
         score = score_self_draw(self.current, self.dealer, win)
         player.clear_youjin()
@@ -234,6 +299,7 @@ class MahjongGame:
             discard_count=discard_count,
             draw_count=draw_count,
             pong_count=pong_count,
+            kong_count=kong_count,
         )
 
     def _discard(self, player: Player, input_func: InputFunc, output_func: OutputFunc) -> str:
@@ -285,6 +351,118 @@ class MahjongGame:
             ):
                 return index
         return None
+
+    def _find_exposed_kong_player(
+        self, discarded: str, input_func: InputFunc, output_func: OutputFunc
+    ) -> Optional[int]:
+        if not self.rules.allow_kong:
+            return None
+        for offset in range(1, 4):
+            index = (self.current + offset) % 4
+            player = self.players[index]
+            if not player.can_exposed_kong(discarded, self.gold_tile):
+                continue
+            if player.is_human:
+                output_func(f"你的手牌：{self._numbered_hand(player)}")
+                answer = input_func(f"是否明杠 {display_tile(discarded)}？[y/n] ").strip().lower()
+                if answer in ("y", "yes", "g", "gang", "杠"):
+                    return index
+            elif self._bot_for_player(index).wants_exposed_kong(
+                player.hand,
+                discarded,
+                self.gold_tile,
+                open_melds=len(player.melds),
+                context=self._bot_context(index),
+            ):
+                return index
+        return None
+
+    def _perform_self_kong(
+        self, player: Player, input_func: InputFunc, output_func: OutputFunc
+    ) -> Optional[Tuple[str, str, Optional[str]]]:
+        if not self.rules.allow_kong:
+            return None
+        choice = self._choose_self_kong(player, input_func, output_func)
+        if choice is None:
+            return None
+        kind, tile = choice
+        if kind == "concealed":
+            player.concealed_kong(tile, self.current)
+            output_func(f"{player.name} 暗杠 {display_tile(tile)}")
+        else:
+            player.added_kong(tile)
+            output_func(f"{player.name} 补杠 {display_tile(tile)}")
+        return kind, tile, self._draw_supplement(player, output_func)
+
+    def _choose_self_kong(
+        self, player: Player, input_func: InputFunc, output_func: OutputFunc
+    ) -> Optional[Tuple[str, str]]:
+        options = self._available_self_kongs(player)
+        if not options:
+            return None
+
+        if player.is_human:
+            labels = [
+                f"{index}:{'暗杠' if kind == 'concealed' else '补杠'} {display_tile(tile)}"
+                for index, (kind, tile) in enumerate(options, start=1)
+            ]
+            output_func("可杠：" + " ".join(labels))
+            answer = input_func("输入编号杠，直接回车跳过：").strip().lower()
+            if not answer:
+                return None
+            if answer.isdigit():
+                index = int(answer) - 1
+                if 0 <= index < len(options):
+                    return options[index]
+            output_func("杠牌编号无效，已跳过。")
+            return None
+
+        bot = self._bot_for_player(self.current)
+        for kind, tile in options:
+            if kind == "concealed" and bot.wants_concealed_kong(
+                player.hand,
+                tile,
+                self.gold_tile,
+                open_melds=len(player.melds),
+                context=self._bot_context(self.current),
+            ):
+                return kind, tile
+            if kind == "added" and bot.wants_added_kong(
+                player.hand,
+                tile,
+                self.gold_tile,
+                open_melds=len(player.melds),
+                context=self._bot_context(self.current),
+            ):
+                return kind, tile
+        return None
+
+    def _available_self_kongs(self, player: Player) -> List[Tuple[str, str]]:
+        if not self.gold_tile:
+            return []
+        options: List[Tuple[str, str]] = []
+        counts = Counter(player.hand)
+        for tile in sorted(counts, key=lambda item: TILE_INDEX[item]):
+            if player.can_concealed_kong(tile, self.gold_tile):
+                options.append(("concealed", tile))
+        for meld in player.melds:
+            tile = meld.tiles[0]
+            if player.can_added_kong(tile, self.gold_tile):
+                options.append(("added", tile))
+        return options
+
+    def _draw_supplement(self, player: Player, output_func: OutputFunc) -> Optional[str]:
+        if not self.wall:
+            output_func("牌墙已空，无法补牌。")
+            return None
+        drawn = self.wall.pop()
+        player.hand.append(drawn)
+        player.sort_hand()
+        if player.is_human:
+            output_func(f"杠后补到：{display_tile(drawn)}")
+        else:
+            output_func(f"{player.name} 杠后补牌")
+        return drawn
 
     def _bot_for_player(self, player_index: int) -> BotPolicy:
         bot_index = player_index - 1 if player_index > self.human_index else player_index
