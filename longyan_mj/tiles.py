@@ -5,13 +5,15 @@ from typing import Dict, Iterable, List
 
 SUITS = ("M", "T", "S")
 HONORS = ("EAST", "SOUTH", "WEST", "NORTH", "RED", "GREEN", "WHITE")
+FLOWERS = ("SPRING", "SUMMER", "AUTUMN", "WINTER", "PLUM", "ORCHID", "BAMBOO", "CHRYSANTHEMUM")
 
-TILE_ORDER: List[str] = (
+PLAYABLE_TILES: List[str] = (
     [f"M{i}" for i in range(1, 10)]
     + [f"T{i}" for i in range(1, 10)]
     + [f"S{i}" for i in range(1, 10)]
     + list(HONORS)
 )
+TILE_ORDER: List[str] = PLAYABLE_TILES + list(FLOWERS)
 
 TILE_INDEX: Dict[str, int] = {tile: index for index, tile in enumerate(TILE_ORDER)}
 
@@ -29,6 +31,14 @@ DISPLAY.update(
         "RED": "中",
         "GREEN": "发",
         "WHITE": "白",
+        "SPRING": "春",
+        "SUMMER": "夏",
+        "AUTUMN": "秋",
+        "WINTER": "冬",
+        "PLUM": "梅",
+        "ORCHID": "兰",
+        "BAMBOO": "竹",
+        "CHRYSANTHEMUM": "菊",
     }
 )
 
@@ -38,12 +48,18 @@ for suit in SUITS:
     TERMINALS_AND_HONORS.add(f"{suit}9")
 
 
-def build_wall() -> List[str]:
-    """Return a fresh 136-tile wall without flowers."""
+def build_wall(include_flowers: bool = False) -> List[str]:
+    """Return a fresh wall, optionally with the 8 flower tiles."""
     wall: List[str] = []
-    for tile in TILE_ORDER:
+    for tile in PLAYABLE_TILES:
         wall.extend([tile] * 4)
+    if include_flowers:
+        wall.extend(FLOWERS)
     return wall
+
+
+def is_flower(tile: str) -> bool:
+    return tile in FLOWERS
 
 
 def is_numbered(tile: str) -> bool:

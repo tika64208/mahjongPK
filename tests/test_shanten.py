@@ -27,6 +27,7 @@ from longyan_mj.bot import (
     default_bot_policies,
 )
 from longyan_mj.shanten import analyze_discards, effective_draws, estimate_shanten
+from longyan_mj.tiles import FLOWERS
 
 
 class ShantenTest(unittest.TestCase):
@@ -50,6 +51,25 @@ class ShantenTest(unittest.TestCase):
         self.assertIn("S6", draws)
         self.assertIn("S9", draws)
         self.assertEqual(0, estimate_shanten(hand, "WHITE"))
+
+    def test_effective_draws_do_not_include_flowers(self):
+        hand = [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "T2",
+            "T3",
+            "T4",
+            "S7",
+            "S8",
+            "RED",
+            "RED",
+        ]
+        draws = effective_draws(hand, "WHITE")
+        self.assertTrue(set(draws).isdisjoint(FLOWERS))
 
     def test_analyze_discards_prefers_tenpai_discard(self):
         hand = [

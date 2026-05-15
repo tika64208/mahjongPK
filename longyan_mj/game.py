@@ -9,7 +9,7 @@ from .evaluator import WinResult, count_gold, evaluate_qiangjin, evaluate_win, f
 from .rules import LONGYAN_HALF_SELF_DRAW, RuleProfile
 from .scoring import ScoreResult, score_self_draw
 from .state import Player
-from .tiles import TILE_INDEX, build_wall, display_tile, display_tiles, sort_tiles
+from .tiles import TILE_INDEX, build_wall, display_tile, display_tiles, is_flower, sort_tiles
 
 InputFunc = Callable[[str], str]
 OutputFunc = Callable[[str], None]
@@ -63,20 +63,23 @@ class MahjongGame:
         self.current = self.dealer
 
     def start_round(self) -> None:
-        self.wall = build_wall()
+        self.wall = build_wall(include_flowers=self.rules.use_flowers)
         self.random.shuffle(self.wall)
-        self.gold_tile = self.wall.pop()
+        self.gold_tile = self._pop_gold_tile()
         self.discards = []
         self.discards_by_player = [[] for _ in self.players]
         self.current = self.dealer
         for player in self.players:
             player.hand.clear()
             player.melds.clear()
+            player.flowers.clear()
             player.clear_youjin()
         for _ in range(13):
             for player in self.players:
-                player.hand.append(self.wall.pop())
-        self.players[self.dealer].hand.append(self.wall.pop())
+                if self._draw_hand_tile(player) is None:
+                    raise RuntimeError("牌墙不足，无法完成发牌")
+        if self._draw_hand_tile(self.players[self.dealer]) is None:
+            raise RuntimeError("牌墙不足，无法完成庄家发牌")
         for player in self.players:
             player.sort_hand()
 
@@ -110,10 +113,10 @@ class MahjongGame:
                     first_turn = False
                     drawn = None
                 else:
-                    drawn = self.wall.pop()
+                    drawn = self._draw_hand_tile(player, output_func)
+                    if drawn is None:
+                        break
                     draw_count += 1
-                    player.hand.append(drawn)
-                    player.sort_hand()
                     if player.is_human:
                         output_func(f"\n你摸到：{display_tile(drawn)}")
                     else:
@@ -243,6 +246,28 @@ class MahjongGame:
                 self.current = index
                 return self._finish_win(player, win, output_func, 0, 0, 0, 0)
 
+        return None
+
+    def _pop_gold_tile(self) -> str:
+        for index in range(len(self.wall) - 1, -1, -1):
+            tile = self.wall[index]
+            if not is_flower(tile):
+                return self.wall.pop(index)
+        raise RuntimeError("牌墙中没有可作为金牌的普通牌")
+
+    def _draw_hand_tile(
+        self, player: Player, output_func: Optional[OutputFunc] = None
+    ) -> Optional[str]:
+        while self.wall:
+            tile = self.wall.pop()
+            if is_flower(tile):
+                player.flowers.append(tile)
+                if output_func:
+                    output_func(f"{player.name} 补花：{display_tile(tile)}")
+                continue
+            player.hand.append(tile)
+            player.sort_hand()
+            return tile
         return None
 
     def _accept_win(
@@ -455,9 +480,10 @@ class MahjongGame:
         if not self.wall:
             output_func("牌墙已空，无法补牌。")
             return None
-        drawn = self.wall.pop()
-        player.hand.append(drawn)
-        player.sort_hand()
+        drawn = self._draw_hand_tile(player, output_func)
+        if drawn is None:
+            output_func("牌墙已空，无法补牌。")
+            return None
         if player.is_human:
             output_func(f"杠后补到：{display_tile(drawn)}")
         else:

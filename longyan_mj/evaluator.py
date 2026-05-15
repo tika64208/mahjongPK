@@ -4,7 +4,7 @@ from collections import Counter
 from functools import lru_cache
 from typing import Dict, Iterable, List, Optional
 
-from .tiles import TERMINALS_AND_HONORS, TILE_INDEX, TILE_ORDER, is_numbered, tile_number
+from .tiles import PLAYABLE_TILES, TERMINALS_AND_HONORS, TILE_INDEX, is_numbered, tile_number
 
 
 class WinResult:
@@ -166,7 +166,7 @@ def is_standard_win(
 
 
 def _counts_tuple(counts: Dict[str, int]) -> tuple:
-    return tuple(counts.get(tile, 0) for tile in TILE_ORDER)
+    return tuple(counts.get(tile, 0) for tile in PLAYABLE_TILES)
 
 
 @lru_cache(maxsize=None)
@@ -210,7 +210,7 @@ def _first_non_zero(counts_tuple: tuple) -> Optional[int]:
 
 
 def _can_make_sequence_from(index: int) -> bool:
-    tile = TILE_ORDER[index]
+    tile = PLAYABLE_TILES[index]
     if not is_numbered(tile):
         return False
-    return tile_number(tile) <= 7 and TILE_ORDER[index + 1][:1] == tile[:1]
+    return tile_number(tile) <= 7 and PLAYABLE_TILES[index + 1][:1] == tile[:1]

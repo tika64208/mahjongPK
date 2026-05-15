@@ -3,12 +3,17 @@ import unittest
 from longyan_mj.bot import AbilityConfig, BasicBot, ShantenBot, build_bot_from_abilities
 from longyan_mj.evaluator import WinResult
 from longyan_mj.game import MahjongGame
-from longyan_mj.tiles import build_wall
+from longyan_mj.tiles import FLOWERS, build_wall, is_flower
 
 
 class GameTest(unittest.TestCase):
-    def test_wall_has_136_tiles(self):
+    def test_wall_has_136_tiles_without_flowers(self):
         self.assertEqual(136, len(build_wall()))
+
+    def test_longyan_wall_has_144_tiles_with_flowers(self):
+        wall = build_wall(include_flowers=True)
+        self.assertEqual(144, len(wall))
+        self.assertEqual(set(FLOWERS), set(tile for tile in wall if is_flower(tile)))
 
     def test_start_round_deals_and_reveals_gold(self):
         game = MahjongGame(seed=7)
@@ -16,7 +21,24 @@ class GameTest(unittest.TestCase):
         hand_sizes = [len(player.hand) for player in game.players]
         self.assertEqual([14, 13, 13, 13], hand_sizes)
         self.assertIsNotNone(game.gold_tile)
-        self.assertEqual(82, len(game.wall))
+        self.assertFalse(is_flower(game.gold_tile))
+        self.assertTrue(all(not is_flower(tile) for player in game.players for tile in player.hand))
+        total_tiles = (
+            len(game.wall)
+            + 1
+            + sum(len(player.hand) for player in game.players)
+            + sum(len(player.flowers) for player in game.players)
+        )
+        self.assertEqual(144, total_tiles)
+
+    def test_flower_draw_is_recorded_and_replaced(self):
+        game = MahjongGame(seed=1)
+        game.wall = ["M1", "SPRING"]
+        player = game.players[0]
+        drawn = game._draw_hand_tile(player, output_func=lambda message: None)
+        self.assertEqual("M1", drawn)
+        self.assertEqual(["SPRING"], player.flowers)
+        self.assertEqual(["M1"], player.hand)
 
     def test_gold_tile_cannot_be_ponged(self):
         game = MahjongGame(seed=1)

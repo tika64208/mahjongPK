@@ -14,4 +14,4 @@ class RuleProfile:
     gold_count: int = 1
 
 
-LONGYAN_HALF_SELF_DRAW = RuleProfile(name="龙岩麻将半自摸 MVP")
+LONGYAN_HALF_SELF_DRAW = RuleProfile(name="龙岩麻将半自摸 MVP", use_flowers=True)

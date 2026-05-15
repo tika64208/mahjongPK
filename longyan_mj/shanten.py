@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Iterable, List, Optional, Set, Tuple
 
 from .evaluator import evaluate_win
-from .tiles import TILE_INDEX, TILE_ORDER, is_numbered
+from .tiles import PLAYABLE_TILES, TILE_INDEX, is_numbered
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ def analyze_discards(
     """Analyze every distinct discard from a complete hand."""
     hand_list = list(hand)
     analyses: List[DiscardAnalysis] = []
-    for tile in sorted(set(hand_list), key=TILE_ORDER.index):
+    for tile in sorted(set(hand_list), key=lambda item: TILE_INDEX[item]):
         next_hand = hand_list[:]
         next_hand.remove(tile)
         draws = tuple(effective_draws(next_hand, gold_tile, open_melds=open_melds))
@@ -55,7 +55,7 @@ def _effective_draws_cached(
 ) -> Tuple[str, ...]:
     hand = list(hand_key)
     draws: List[str] = []
-    for tile in TILE_ORDER:
+    for tile in PLAYABLE_TILES:
         candidate = hand + [tile]
         if evaluate_win(candidate, gold_tile, open_melds=open_melds):
             draws.append(tile)
@@ -147,7 +147,7 @@ def _thirteen_orphans_shanten(tiles: List[str], gold_tile: str, open_melds: int)
 
 
 def _counts_tuple(counts: Counter) -> Tuple[int, ...]:
-    return tuple(counts.get(tile, 0) for tile in TILE_ORDER)
+    return tuple(counts.get(tile, 0) for tile in PLAYABLE_TILES)
 
 
 @lru_cache(maxsize=None)
@@ -207,7 +207,7 @@ def _first_non_zero(counts_tuple: Tuple[int, ...]) -> Optional[int]:
 
 
 def _can_start_sequence(index: int) -> bool:
-    tile = TILE_ORDER[index]
+    tile = PLAYABLE_TILES[index]
     if not is_numbered(tile):
         return False
-    return index + 2 < len(TILE_ORDER) and TILE_ORDER[index + 2][:1] == tile[:1]
+    return index + 2 < len(PLAYABLE_TILES) and PLAYABLE_TILES[index + 2][:1] == tile[:1]
