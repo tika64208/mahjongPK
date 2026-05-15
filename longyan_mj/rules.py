@@ -10,6 +10,7 @@ class RuleProfile:
     allow_pong: bool = True
     allow_kong: bool = True
     allow_ron: bool = False
+    allow_rob_kong: bool = True
     use_flowers: bool = False
     gold_count: int = 1
 

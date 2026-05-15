@@ -202,6 +202,82 @@ class GameTest(unittest.TestCase):
         self.assertEqual(10, result.score.multiplier)
         self.assertEqual(0, player.youjin_level)
 
+    def test_single_you_gold_discard_upgrades_to_double_you(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        player = game.players[0]
+        player.youjin_level = 1
+        game.gold_tile = "WHITE"
+
+        upgraded = game._apply_youjin_gold_discard(
+            player, "WHITE", output_func=lambda message: None
+        )
+
+        self.assertTrue(upgraded)
+        self.assertEqual(2, player.youjin_level)
+
+    def test_single_you_kong_supplement_gold_upgrades_to_double_you(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        player = game.players[0]
+        player.youjin_level = 1
+        game.gold_tile = "WHITE"
+        game.wall = ["WHITE"]
+
+        drawn = game._draw_supplement(player, output_func=lambda message: None)
+        upgraded = game._apply_youjin_draw(
+            player, drawn, output_func=lambda message: None
+        )
+
+        self.assertTrue(upgraded)
+        self.assertEqual(2, player.youjin_level)
+        self.assertNotIn("WHITE", player.hand)
+
+    def test_kong_score_is_added_to_round_payments(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        game.dealer = 0
+
+        score = game._apply_kong_score(
+            "exposed", kong_player=2, source_player=1, output_func=lambda message: None
+        )
+
+        self.assertEqual([0, -4, 4, 0], score.payments)
+        self.assertEqual([0, -4, 4, 0], game.round_payments)
+
+    def test_added_kong_can_be_robbed(self):
+        game = MahjongGame(seed=1)
+        game.start_round()
+        game.gold_tile = "WHITE"
+        game.current = 1
+        game.dealer = 0
+        for player in game.players:
+            player.is_human = False
+        game.players[2].hand = [
+            "M1",
+            "M2",
+            "M3",
+            "T1",
+            "T2",
+            "T3",
+            "S1",
+            "S2",
+            "S3",
+            "EAST",
+            "EAST",
+            "EAST",
+            "M5",
+        ]
+
+        result = game._check_rob_kong(
+            "M5", input_func=lambda prompt: "", output_func=lambda message: None
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual("rob_kong", result.reason)
+        self.assertEqual(2, result.winner)
+        self.assertEqual([0, -4, 4, 0], result.score.payments)
+
 
 if __name__ == "__main__":
     unittest.main()

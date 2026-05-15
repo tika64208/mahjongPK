@@ -173,6 +173,22 @@ class EvaluatorTest(unittest.TestCase):
         ]
         self.assertEqual("RED", find_youjin_discard(tiles, "WHITE"))
 
+    def test_find_youjin_discard_with_two_gold_open_hand(self):
+        tiles = [
+            "M4",
+            "M5",
+            "M6",
+            "M7",
+            "M9",
+            "T3",
+            "T4",
+            "T5",
+            "S9",
+            "S9",
+            "GREEN",
+        ]
+        self.assertEqual("GREEN", find_youjin_discard(tiles, "S9", open_melds=1))
+
 
 if __name__ == "__main__":
     unittest.main()

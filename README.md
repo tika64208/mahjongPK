@@ -49,9 +49,16 @@ python3 -m longyan_mj.cli --seed 1
 python3 -m unittest discover -s tests -v
 ```
 
+小程序模式：
+
+- 使用微信开发者工具导入仓库根目录。
+- `project.config.json` 已指向 `miniprogram/`。
+- 说明见：[小程序模式说明](docs/miniprogram-mode.md)。
+
 需求与架构：
 
 - [需求分析](docs/requirements.md)
 - [架构设计](docs/architecture.md)
+- [小程序模式说明](docs/miniprogram-mode.md)
 - [1000 局自动模拟数据](docs/simulation-results.md)
 - [机器人能力测试方案](docs/ability-benchmark-plan.md)

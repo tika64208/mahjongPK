@@ -71,29 +71,30 @@ def evaluate_qiangjin(
 def find_youjin_discard(
     tiles: Iterable[str], gold_tile: Optional[str], open_melds: int = 0
 ) -> Optional[str]:
-    """Return a natural pair tile that can be discarded to enter youjin.
+    """Return a discard that can enter single-you.
 
-    MVP rule: if the hand is a standard winning hand and one gold can serve as
-    the pair with a natural tile, discarding that natural tile leaves the gold as
-    single pair anchor for single-you.
+    A single-you discard must leave the hand in a state where the next draw can
+    complete the hand. This covers both the simple one-gold pair-anchor route
+    and richer two-gold routes where one gold completes a meld while the other
+    can pair with the next drawn tile.
     """
     if not gold_tile:
         return None
     hand = list(tiles)
-    if hand.count(gold_tile) != 1:
+    if hand.count(gold_tile) >= 3:
         return None
     if not is_standard_win(hand, gold_tile, open_melds=open_melds):
         return None
 
-    counts = Counter(tile for tile in hand if tile != gold_tile)
-    for tile in sorted(counts, key=lambda item: TILE_INDEX[item]):
-        if counts[tile] >= 1:
-            candidate = hand[:]
-            candidate.remove(tile)
-            if is_standard_win(candidate + [tile], gold_tile, open_melds=open_melds):
-                without_gold = [item for item in candidate if item != gold_tile]
-                if _can_form_melds(_counts_tuple(Counter(without_gold)), 0, 4 - open_melds):
-                    return tile
+    candidates = sorted(
+        {tile for tile in hand if tile != gold_tile},
+        key=lambda item: TILE_INDEX[item],
+    )
+    for tile in candidates:
+        candidate = hand[:]
+        candidate.remove(tile)
+        if _is_youjin_wait(candidate, gold_tile, open_melds):
+            return tile
     return None
 
 
@@ -104,6 +105,14 @@ def _is_qiangjin_shape(tiles: Iterable[str], gold_tile: str, open_melds: int) ->
     if open_melds == 0 and is_seven_pairs(hand, gold_tile):
         return True
     return is_standard_win(hand, gold_tile, open_melds=open_melds)
+
+
+def _is_youjin_wait(tiles: Iterable[str], gold_tile: str, open_melds: int) -> bool:
+    hand = list(tiles)
+    sets_needed = 4 - open_melds
+    if len(hand) != sets_needed * 3 + 1:
+        return False
+    return all(evaluate_win(hand + [draw], gold_tile, open_melds=open_melds) for draw in PLAYABLE_TILES)
 
 
 def is_seven_pairs(tiles: Iterable[str], gold_tile: str) -> bool:
@@ -151,9 +160,15 @@ def is_standard_win(
     for index, count in enumerate(counts_tuple):
         if count <= 0:
             continue
-        take = min(2, count)
-        need = 2 - take
-        if need <= wildcards:
+        pair_takes = []
+        if count >= 2:
+            pair_takes.append(2)
+        if count >= 1:
+            pair_takes.append(1)
+        for take in pair_takes:
+            need = 2 - take
+            if need > wildcards:
+                continue
             next_counts = list(counts_tuple)
             next_counts[index] -= take
             if _can_form_melds(tuple(next_counts), wildcards - need, sets_needed):

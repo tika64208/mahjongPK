@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/game/game"
+  ],
+  "window": {
+    "navigationBarTitleText": "龙岩麻将",
+    "navigationBarBackgroundColor": "#061a24",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#04131b"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

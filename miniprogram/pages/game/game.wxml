@@ -1,0 +1,154 @@
+<view class="screen">
+  <view class="topbar">
+    <view>
+      <view class="title">龙岩麻将</view>
+      <view class="subtitle">{{statusText}}</view>
+    </view>
+    <button class="primary small new-round" bindtap="onNewRound">{{roundStarted ? '新一局' : '开始'}}</button>
+  </view>
+
+  <view class="table">
+    <view wx:if="{{!roundStarted}}" class="result">
+      <view class="result-title">准备开始</view>
+      <view class="result-sub">点击右上角“开始”进入一局单机对战。</view>
+    </view>
+
+    <view class="meta">
+      <view class="meta-item">
+        <text class="label">金牌</text>
+        <text class="gold">{{goldDisplay}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="label">牌墙</text>
+        <text>{{wallRemaining}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="label">当前</text>
+        <text>{{currentPlayerName}}</text>
+      </view>
+    </view>
+
+    <view class="players">
+      <block wx:for="{{players}}" wx:key="index">
+        <view class="player {{item.active ? 'active' : ''}} {{item.human ? 'human' : ''}}">
+          <view class="player-head">
+            <text>{{item.name}}</text>
+            <text class="score">{{item.score}}</text>
+          </view>
+          <view wx:if="{{item.youjinLabel}}" class="youjin-badge">{{item.youjinLabel}}</view>
+          <view class="player-line">
+            <text>手 {{item.handCount}}</text>
+            <text>副 {{item.meldCount}}</text>
+            <text>花 {{item.flowers}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view wx:if="{{roundOver}}" class="result">
+      <view class="result-title">{{resultText}}</view>
+      <view class="result-sub">{{scoreText}}</view>
+    </view>
+
+  </view>
+
+  <view class="hand-panel">
+    <view class="section-title">你的手牌</view>
+    <view class="hand">
+      <block wx:for="{{humanHand}}" wx:key="key">
+        <view
+          class="tile tile-{{item.group}} {{item.gold ? 'tile-gold' : ''}} {{item.latest ? 'tile-latest' : ''}} {{item.reactionMatch ? 'tile-reaction-match' : ''}} {{item.selected ? 'tile-selected' : ''}} {{canDiscard ? '' : 'tile-disabled'}}"
+          data-index="{{index}}"
+          bindtap="onSelectTile"
+        >
+          <text wx:if="{{item.latest}}" class="latest-badge">新</text>
+          {{item.display}}
+        </view>
+      </block>
+    </view>
+    <view class="flowers" wx:if="{{humanFlowers.length}}">
+      <view class="section-title flower-title">你的花牌</view>
+      <block wx:for="{{humanFlowers}}" wx:key="key">
+        <text class="flower">{{item.display}}</text>
+      </block>
+    </view>
+
+    <view wx:if="{{pendingReaction}}" class="operation-panel">
+      <view class="operation-title">响应 {{reactionSourceName}} 出牌</view>
+      <view class="reaction-focus">
+        <view class="reaction-tile tile-{{reactionTileGroup}}">{{reactionTileText}}</view>
+        <view class="reaction-copy">
+          <view>对方打出 {{reactionTileText}}</view>
+          <view class="operation-hint">你手里的同牌已高亮，可以选择碰、杠，或直接过。</view>
+        </view>
+      </view>
+      <view class="actions">
+        <button wx:if="{{canHumanKong}}" class="action-button primary" bindtap="onHumanExposedKong">明杠 {{reactionTileText}}</button>
+        <button wx:if="{{canHumanPong}}" class="action-button" bindtap="onHumanPong">碰 {{reactionTileText}}</button>
+        <button class="action-button muted" bindtap="onPassReaction">过</button>
+      </view>
+    </view>
+
+    <view wx:elif="{{humanTurn && !roundOver}}" class="operation-panel">
+      <view class="operation-title">你的操作</view>
+      <view wx:if="{{canHumanYoujin}}" class="youjin-tip">
+        当前可单游：打出 {{youjinDiscardText}}，进入单游状态。
+      </view>
+      <view wx:if="{{canConfirmDiscard}}" class="operation-hint">已选择 {{selectedTileText}}，确认后打出。</view>
+      <view wx:else class="operation-hint">先点选一张手牌，再确认打出。</view>
+      <view class="actions">
+        <button wx:if="{{canHumanWin}}" class="action-button primary" bindtap="onHumanWin">胡</button>
+        <button wx:if="{{canHumanYoujin}}" class="action-button accent" bindtap="onHumanYoujin">进入单游</button>
+        <button class="action-button" wx:for="{{selfKongOptions}}" wx:key="key" data-index="{{index}}" bindtap="onHumanSelfKong">
+          {{item.label}}
+        </button>
+        <button wx:if="{{canConfirmDiscard}}" class="action-button primary" bindtap="onConfirmDiscard">打出 {{selectedTileText}}</button>
+        <button wx:if="{{canConfirmDiscard}}" class="action-button muted" bindtap="onCancelSelection">取消</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="history-panel" wx:if="{{roundStarted}}">
+    <view class="section-title">各家牌河 / 副露</view>
+    <block wx:for="{{players}}" wx:key="index">
+      <view class="history-player">
+        <view class="history-head">
+          <text>{{item.name}}</text>
+          <text>{{item.discards.length}} 张</text>
+        </view>
+        <view class="history-row">
+          <text class="history-label">牌河</text>
+          <view class="mini-tiles">
+            <block wx:for="{{item.discards}}" wx:for-item="discard" wx:key="key">
+              <text class="mini-tile">{{discard.display}}</text>
+            </block>
+            <text wx:if="{{!item.discards.length}}" class="empty-text">暂无</text>
+          </view>
+        </view>
+        <view class="history-row">
+          <text class="history-label">副露</text>
+          <view class="melds">
+            <block wx:for="{{item.melds}}" wx:for-item="meld" wx:key="key">
+              <view class="meld">
+                <text class="meld-label">{{meld.label}}</text>
+                <block wx:for="{{meld.tiles}}" wx:for-item="meldTile" wx:key="key">
+                  <text class="mini-tile">{{meldTile.display}}</text>
+                </block>
+              </view>
+            </block>
+            <text wx:if="{{!item.melds.length}}" class="empty-text">暂无</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="log-panel">
+    <view class="section-title">牌局日志</view>
+    <scroll-view scroll-y class="logs">
+      <block wx:for="{{logs}}" wx:key="index">
+        <view class="log">{{item}}</view>
+      </block>
+    </scroll-view>
+  </view>
+</view>

@@ -1,7 +1,7 @@
 """Scoring helpers for supported Longyan Mahjong win types."""
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .evaluator import WinResult
 
@@ -42,6 +42,7 @@ DEFAULT_WIN_RULES: Dict[str, WinScoreRule] = {
         "thirteen_orphans", "十三幺", 20, "按三游等级参考结算。"
     ),
     "qiang_jin": WinScoreRule("qiang_jin", "抢金", 4, "翻金后起手听牌抢金胡。"),
+    "kong_bloom": WinScoreRule("kong_bloom", "杠上开花", 2, "杠后补牌自摸。"),
     "single_you": WinScoreRule("single_you", "单游", 5, "游金胡。"),
     "double_you": WinScoreRule("double_you", "双游", 10, "双游胡。"),
     "triple_you": WinScoreRule("triple_you", "三游", 20, "三游胡。"),
@@ -87,6 +88,86 @@ def score_self_draw(
     )
 
 
+def score_rob_kong(
+    winner: int,
+    robbed_player: int,
+    dealer: int,
+    win: WinResult,
+    profile: ScoreProfile = DEFAULT_SCORE_PROFILE,
+    player_count: int = 4,
+) -> ScoreResult:
+    """Score a rob-kong win where the robbed player pays the full self-draw value."""
+    base_score = score_self_draw(winner, dealer, win, profile, player_count)
+    payments = [0] * player_count
+    payments[winner] = base_score.total_gain
+    payments[robbed_player] = -base_score.total_gain
+    return ScoreResult(
+        winner=winner,
+        win_label="抢杠胡",
+        multiplier=base_score.multiplier,
+        payments=payments,
+        total_gain=payments[winner],
+    )
+
+
+def score_kong(
+    kong_kind: str,
+    kong_player: int,
+    dealer: int,
+    source_player: Optional[int] = None,
+    profile: ScoreProfile = DEFAULT_SCORE_PROFILE,
+    player_count: int = 4,
+) -> ScoreResult:
+    """Score a kong.
+
+    concealed kongs are worth two base units; exposed and added kongs are worth
+    one. If source_player is provided, that player pays the whole kong value.
+    """
+    multiplier = 2 if kong_kind == "concealed" else 1
+    payments = [0] * player_count
+    for player_index in range(player_count):
+        if player_index == kong_player:
+            continue
+        amount = profile.base_score * multiplier
+        if kong_player == dealer or player_index == dealer:
+            amount *= profile.dealer_multiplier
+        payments[player_index] = -amount
+        payments[kong_player] += amount
+
+    if source_player is not None:
+        total = payments[kong_player]
+        payments = [0] * player_count
+        payments[kong_player] = total
+        payments[source_player] = -total
+
+    labels = {
+        "exposed": "明杠",
+        "concealed": "暗杠",
+        "added": "补杠",
+    }
+    return ScoreResult(
+        winner=kong_player,
+        win_label=labels.get(kong_kind, "杠"),
+        multiplier=multiplier,
+        payments=payments,
+        total_gain=payments[kong_player],
+    )
+
+
+def combine_score_payments(score: ScoreResult, extra_payments: List[int]) -> ScoreResult:
+    payments = [
+        payment + (extra_payments[index] if index < len(extra_payments) else 0)
+        for index, payment in enumerate(score.payments)
+    ]
+    total_gain = payments[score.winner] if 0 <= score.winner < len(payments) else 0
+    return ScoreResult(
+        winner=score.winner,
+        win_label=score.win_label,
+        multiplier=score.multiplier,
+        payments=payments,
+        total_gain=total_gain,
+    )
+
+
 def win_score_table(profile: ScoreProfile = DEFAULT_SCORE_PROFILE) -> List[WinScoreRule]:
     return sorted(profile.win_rules.values(), key=lambda rule: (rule.multiplier, rule.kind))
-
